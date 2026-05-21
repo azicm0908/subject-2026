@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2026 김포고 수강신청 도우미(2026 입학생)</title>
+    <style>
+        :root {
+            --primary: #2b6cb0;
+            --primary-light: #ebf8ff;
+            --success: #38a169;
+            --danger: #e53e3e;
+            --bg-color: #f7fafc;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-sub: #718096;
+            --border: #e2e8f0;
+        }
+
+        body {
+            margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: var(--bg-color); color: var(--text-main); padding-bottom: 70px;
+        }
+
+        header {
+            background-color: var(--primary); color: white; padding: 12px 20px; font-size: 1.1rem; 
+            font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--border);
+            display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); z-index: 999;
+        }
+        .bottom-nav button {
+            flex: 1; padding: 10px 0; border: none; background: none; color: var(--text-sub); font-size: 0.75rem; 
+            font-weight: bold; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
+        }
+        .bottom-nav button.active { color: var(--primary); }
+        .nav-icon { font-size: 1.2rem; }
+
+        .made-by {
+            position: absolute;
+            bottom: calc(2px + env(safe-area-inset-bottom));
+            right: 8px;
+            font-size: 0.55rem;
+            color: var(--text-sub);
+            opacity: 0.6;
+            pointer-events: none;
+            letter-spacing: -0.2px;
+        }
+
+        .tab-content { display: none; animation: fadeIn 0.2s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .notice-banner {
+            background-color: #fffaf0; border: 1px solid #feebc8; color: #dd6b20;
+            padding: 12px; font-size: 0.85rem; font-weight: bold; text-align: center;
+            border-radius: 8px; margin: 15px 15px 5px 15px; line-height: 1.5;
+        }
+
+        /* 대시보드 */
+        .status-board {
+            position: sticky; top: 45px; background: var(--card-bg); padding: 10px 15px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); z-index: 100; border-bottom: 1px solid var(--border);
+        }
+        .main-stats { display: flex; justify-content: space-around; padding-bottom: 8px; border-bottom: 1px solid #edf2f7; margin-bottom: 8px; }
+        .category-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .stat-box { text-align: center; background: #f8fafc; padding: 6px 4px; border-radius: 6px; }
+        .stat-box h4 { margin: 0 0 3px 0; font-size: 0.7rem; color: var(--text-sub); line-height: 1.1; word-break: keep-all; letter-spacing: -0.5px; }
+        .val-line { font-size: 0.9rem; font-weight: bold; }
+        .val-line .req { font-size: 0.7rem; color: #a0aec0; font-weight: normal; margin-left: 2px; }
+        .warning { color: var(--danger); }
+        .safe { color: var(--success); }
+        .pass { color: var(--primary); }
+
+        /* 시뮬레이터 리스트 */
+        .sim-container { padding: 15px; }
+        details.term-group { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
+        details.term-group > summary { background: #fff; padding: 12px 15px; font-weight: bold; font-size: 0.95rem; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        details.term-group[open] > summary { background: var(--primary-light); color: var(--primary); }
+        details.term-group > summary::after { content: '▼'; font-size: 0.7rem; }
+        details.term-group[open] > summary::after { content: '▲'; }
+        .term-content { padding: 8px; background: #fdfdfd; }
+        
+        .course-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; cursor: pointer; padding: 10px; transition: all 0.3s ease; }
+        .course-card:active { background-color: #f7fafc; } 
+        .course-card.over-limit { opacity: 0.4; filter: grayscale(80%); pointer-events: none; background-color: #edf2f7; }
+
+        .course-header { display: flex; align-items: flex-start; }
+        .checkbox-wrapper { margin-right: 12px; pointer-events: none; margin-top: 2px; }
+        .checkbox-wrapper input { width: 18px; height: 18px; accent-color: var(--primary); }
+        
+        .course-info { flex-grow: 1; pointer-events: none; }
+        .course-title-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .title-text { font-weight: bold; font-size: 0.95rem; color: #1a202c; }
+        
+        .tags-wrapper { display: flex; flex-wrap: wrap; gap: 4px; }
+        .tag { font-size: 0.65rem; padding: 3px 6px; border-radius: 4px; font-weight: bold; }
+        .tag-req { background: #fed7d7; color: #c53030; } 
+        .tag-opt { background: #e2e8f0; color: #4a5568; } 
+        .tag-grd { background: #feebc8; color: #c05621; } 
+        .tag-grd-x { background: #e6fffa; color: #285e61; } 
+        .tag-cred { background: #ebf8ff; color: #2b6cb0; margin-left: auto; } 
+
+        .mandatory { background-color: #f7fafc; cursor: default; }
+
+        .choice-section-title {
+            margin: 14px 0 8px 0;
+            padding: 8px 10px;
+            border-left: 4px solid var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: 0.85rem;
+            font-weight: bold;
+            border-radius: 6px;
+        }
+
+        /* 과목 안내 탭 스타일 */
+        .guide-container { padding: 15px; }
+        .search-wrapper { margin-bottom: 20px; position: sticky; top: 45px; z-index: 100; background: var(--bg-color); padding: 10px 0; }
+        .search-wrapper input { width: 100%; padding: 12px 15px; border: 2px solid var(--primary); border-radius: 25px; font-size: 1rem; box-sizing: border-box; outline: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .guide-section { margin-bottom: 25px; }
+        .guide-cat-title { font-size: 1.05rem; color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 5px; margin-bottom: 12px; }
+        .guide-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .guide-item { background: var(--card-bg); border: 1px solid var(--border); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .guide-item-top { display: flex; justify-content: space-between; align-items: center; }
+        .guide-item-name { font-weight: bold; font-size: 0.95rem; }
+        .guide-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+        .btn-link { border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.75rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: background 0.2s; }
+        .btn-pdf { background-color: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+        .btn-pdf:hover { background-color: #bee3f8; }
+        .btn-vid { background-color: #fff5f5; color: #c53030; border: 1px solid #fed7d7; }
+        .btn-vid:hover { background-color: #fed7d7; }
+        .no-result { text-align: center; padding: 30px 0; color: var(--text-sub); font-weight: bold; }
+        
+        /* 🎬 모바일 최적화 고신뢰도 비디오 카드 UI 스타일 */
+        .video-container { padding: 15px; }
+        .video-card-link {
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+            padding: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 15px;
+            cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: transform 0.2s, background 0.2s;
+        }
+        .video-card-link:active { background: #f7fafc; transform: scale(0.98); }
+        .video-play-icon {
+            font-size: 1.5rem; background: #fff5f5; color: #c53030;
+            width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; border: 1px solid #fed7d7; flex-shrink: 0;
+        }
+        .video-card-info { flex-grow: 1; }
+        .video-card-title { font-weight: bold; font-size: 0.9rem; color: #2d3748; margin-bottom: 4px; line-height: 1.3; }
+        .video-card-sub { font-size: 0.75rem; color: var(--primary); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>2026 김포고 수강신청 도우미(1학년)</header>
+
+    <main>
+        <section id="tab-sim" class="tab-content active">
+            <div class="notice-banner">
+                💡 이 화면은 실제 수강신청이 아니며, 선택한 내역은 학교 시스템에 저장되지 않습니다. 아래에서 희망하는 선택 과목을 체크한 후 필수 이수학점 만족 여부를 확인해보세요.
+            </div>
+
+            <div class="status-board">
+                <div class="main-stats">
+                    <div class="stat-box" style="background:none; padding:0;">
+                        <h4>총 교과 학점</h4><div class="val-line"><span id="total-val">0</span><span class="req">/ 174</span></div>
+                    </div>
+                    <div class="stat-box" style="background:none; padding:0;">
+                        <h4>국·영·수 제한</h4><div class="val-line"><span id="ksy-limit-val">0</span><span class="req">/ 81</span></div>
+                    </div>
+                </div>
+                <div class="category-stats">
+                    <div class="stat-box"><h4>국어</h4><div class="val-line"><span id="cat-kor">0</span><span class="req">/ 8</span></div></div>
+                    <div class="stat-box"><h4>수학</h4><div class="val-line"><span id="cat-mat">0</span><span class="req">/ 8</span></div></div>
+                    <div class="stat-box"><h4>영어</h4><div class="val-line"><span id="cat-eng">0</span><span class="req">/ 8</span></div></div>
+                    <div class="stat-box"><h4>한국사</h4><div class="val-line"><span id="cat-his">0</span><span class="req">/ 6</span></div></div>
+                    <div class="stat-box"><h4>사회</h4><div class="val-line"><span id="cat-soc">0</span><span class="req">/ 8</span></div></div>
+                    <div class="stat-box"><h4>과학</h4><div class="val-line"><span id="cat-sci">0</span><span class="req">/ 10</span></div></div>
+                    <div class="stat-box"><h4>체육</h4><div class="val-line"><span id="cat-pe">0</span><span class="req">/ 10</span></div></div>
+                    <div class="stat-box"><h4>예술</h4><div class="val-line"><span id="cat-art">0</span><span class="req">/ 6</span></div></div>
+                    <div class="stat-box"><h4 style="font-size: 0.55rem;">기술·가정/정보/제2외국어/한문/교양</h4><div class="val-line"><span id="cat-etc">0</span><span class="req">/ 15</span></div></div>
+                </div>
+            </div>
+            <div class="sim-container" id="sim-container"></div>
+        </section>
+
+        <section id="tab-guide" class="tab-content">
+            <div class="guide-container">
+                <div class="search-wrapper">
+                    <input type="search" id="guide-search-input" placeholder="🔍 과목명을 검색해 보세요...">
+                </div>
+                <div id="guide-container"></div>
+            </div>
+        </section>
+
+        <section id="tab-video" class="tab-content">
+            <div class="video-container">
+                <h2 style="font-size: 1.1rem; margin-top:0;">수강신청 도움 영상</h2>
+                <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 20px;">터치하시면 유튜브 앱 또는 안전한 브라우저 화면에서 끊김 없이 즉시 재생됩니다.</p>
+                
+                <div class="video-card-link" onclick="window.open('https://www.youtube.com/watch?v=5ixAm_L1U2g', '_blank')">
+                    <div class="video-play-icon">🎬</div>
+                    <div class="video-card-info">
+                        <div class="video-card-title">고교학점제와 과목 선택 가이드</div>
+                        <div class="video-card-sub">유튜브에서 시청하기 ➔</div>
+                    </div>
+                </div>
+
+                <div class="video-card-link" onclick="window.open('https://www.youtube.com/watch?v=BgYrj7c9tSk', '_blank')">
+                    <div class="video-play-icon">🎬</div>
+                    <div class="video-card-info">
+                        <div class="video-card-title">진로·진학을 고려한 선택과목</div>
+                        <div class="video-card-sub">유튜브에서 시청하기 ➔</div>
+                    </div>
+                </div>
+
+                <div class="video-card-link" onclick="window.open('https://www.youtube.com/watch?v=6E5R_rdDcJA', '_blank')">
+                    <div class="video-play-icon">🎬</div>
+                    <div class="video-card-info">
+                        <div class="video-card-title">선택과목 고르기 전에 제발 꼭 알아두세요</div>
+                        <div class="video-card-sub">유튜브에서 시청하기 ➔</div>
+                    </div>
+                </div>
+
+ <div class="video-card-link" onclick="window.open('https://www.youtube.com/watch?v=O7kmIrM4ovM', '_blank')">
+                    <div class="video-play-icon">🎬</div>
+                    <div class="video-card-info">
+                        <div class="video-card-title">2028 대입을 위한 과목 선택 핵심 전략</div>
+                        <div class="video-card-sub">유튜브에서 시청하기 ➔</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <nav class="bottom-nav">
+        <button class="nav-btn active" data-target="tab-sim"><span class="nav-icon">📊</span><span>연습해보기</span></button>
+        <button class="nav-btn" data-target="tab-guide"><span class="nav-icon">📖</span><span>과목 안내</span></button>
+        <button class="nav-btn" data-target="tab-video"><span class="nav-icon">📺</span><span>도움 영상</span></button>
+        <span class="made-by">made by 손진</span>
+    </nav>
+
+    <script>
+        const courses = [
+            // === 1학년 ===
+            { t: '1학년 1학기', n: '공통국어 1', c: 4, type: 'm', cat: 'kor', ksy: true, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000089', vid: 'https://www.youtube.com/watch?v=5o_kxGKaJFM' },
+            { t: '1학년 1학기', n: '공통수학 1', c: 4, type: 'm', cat: 'mat', ksy: true, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000100', vid: 'https://www.youtube.com/watch?v=JwDZJYF87oQ' },
+            { t: '1학년 1학기', n: '공통영어 1', c: 3, type: 'm', cat: 'eng', ksy: true, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000115', vid: 'https://www.youtube.com/watch?v=3EhOLDtFGhc' },
+            { t: '1학년 1학기', n: '한국사 1', c: 3, type: 'm', cat: 'his', ksy: false, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000128', vid: 'https://www.youtube.com/watch?v=PTs7GuzL_Uk' },
+            { t: '1학년 1학기', n: '통합사회 1', c: 3, type: 'm', cat: 'soc', ksy: false, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000130', vid: 'https://www.youtube.com/watch?v=u8mzQ2urb9E' },
+            { t: '1학년 1학기', n: '통합과학 1', c: 4, type: 'm', cat: 'sci', ksy: false, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000151', vid: 'https://www.youtube.com/watch?v=raBcv1BiCks' },
+            { t: '1학년 1학기', n: '과학탐구실험 1', c: 1, type: 'm', cat: 'sci', ksy: false, sel: '공통', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000153', vid: 'https://www.youtube.com/watch?v=tCToqUD6UNM' },
+            { t: '1학년 1학기', n: '체육 1', c: 2, type: 'm', cat: 'pe', ksy: false, sel: '공통', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000170', vid: 'https://www.youtube.com/watch?v=zeDk8kEJiAQ' },
+            { t: '1학년 1학기', n: '음악', c: 2, type: 'm', cat: 'art', ksy: false, sel: '공통', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000177', vid: 'https://www.youtube.com/watch?v=eB0cToYUYdw' },
+            { t: '1학년 1학기', n: '정보', c: 3, type: 'm', cat: 'etc', ksy: false, sel: '일반', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=bPn0WxaJcOI' },
+
+            { t: '1학년 2학기', n: '공통국어 2', c: 3, type: 'm', cat: 'kor', ksy: true, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000090', vid: 'https://www.youtube.com/watch?v=WNmjYBkZd78' },
+            { t: '1학년 2학기', n: '공통수학 2', c: 4, type: 'm', cat: 'mat', ksy: true, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000101', vid: 'https://www.youtube.com/watch?v=yXCYjtZ-OJM' },
+            { t: '1학년 2학기', n: '공통영어 2', c: 4, type: 'm', cat: 'eng', ksy: true, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000115', vid: 'https://www.youtube.com/watch?v=3EhOLDtFGhc' },
+            { t: '1학년 2학기', n: '한국사 2', c: 3, type: 'm', cat: 'his', ksy: false, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000129', vid: 'https://www.youtube.com/watch?v=Xbr95NO98V8' },
+            { t: '1학년 2학기', n: '통합사회 2', c: 3, type: 'm', cat: 'soc', ksy: false, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000131', vid: 'https://www.youtube.com/watch?v=B-Kw0Wwed7s' },
+            { t: '1학년 2학기', n: '통합과학 2', c: 4, type: 'm', cat: 'sci', ksy: false, sel: '공통', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000152', vid: 'https://www.youtube.com/watch?v=8CjYLmLwF5k' },
+            { t: '1학년 2학기', n: '과학탐구실험 2', c: 1, type: 'm', cat: 'sci', ksy: false, sel: '공통', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000154', vid: 'https://www.youtube.com/watch?v=gEYC2EJjSFw' },
+            { t: '1학년 2학기', n: '체육 2', c: 2, type: 'm', cat: 'pe', ksy: false, sel: '공통', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000171', vid: 'https://www.youtube.com/watch?v=r4ZQMe5Lm0I' },
+            { t: '1학년 2학기', n: '미술', c: 2, type: 'm', cat: 'art', ksy: false, sel: '공통', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000178', vid: 'https://www.youtube.com/watch?v=Z_qunLDSCXc' },
+            { t: '1학년 2학기', n: '한문', c: 3, type: 'm', cat: 'etc', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000229', vid: 'https://www.youtube.com/watch?v=f4V-XWabqv8' },
+
+            // === 2학년 1학기 ===
+            { t: '2학년 1학기 (선택 택 5)', n: '문학', c: 4, type: 'm', cat: 'kor', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000093', vid: 'https://www.youtube.com/watch?v=l7-uRLQV44Y' },
+            { t: '2학년 1학기 (선택 택 5)', n: '대수', c: 4, type: 'm', cat: 'mat', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000104', vid: 'https://www.youtube.com/watch?v=H8LhvjRiJQs' },
+            { t: '2학년 1학기 (선택 택 5)', n: '영어 I', c: 4, type: 'm', cat: 'eng', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000117', vid: 'https://www.youtube.com/watch?v=k3rMf1d-Qcg' },
+            { t: '2학년 1학기 (선택 택 5)', n: '스포츠 생활 1', c: 2, type: 'm', cat: 'pe', ksy: false, sel: '일반', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000175', vid: 'https://www.youtube.com/watch?v=9FeKyphs3EI' },
+            { t: '2학년 1학기 (선택 택 5)', n: '고시외 과목', c: 1, type: 'm', cat: 'etc', ksy: false, sel: '교양', grd: 'P/F'},
+            { t: '2학년 1학기 (선택 택 5)', n: '주제 탐구 독서', c: 3, type: 'e', cat: 'kor', ksy: true, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000094' },
+            { t: '2학년 1학기 (선택 택 5)', n: '인공지능 수학', c: 3, type: 'e', cat: 'mat', ksy: true, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000110', vid: 'https://www.youtube.com/watch?v=uhIfxd0SweQ' },
+            { t: '2학년 1학기 (선택 택 5)', n: '영어 독해와 작문', c: 3, type: 'e', cat: 'eng', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000119', vid: 'https://www.youtube.com/watch?v=6HZKK0j1tp4' },
+            { t: '2학년 1학기 (선택 택 5)', n: '세계시민과 지리', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000132', vid: 'https://www.youtube.com/watch?v=8p1Iy8TgjXI' },
+            { t: '2학년 1학기 (선택 택 5)', n: '세계사', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000133', vid: 'https://www.youtube.com/watch?v=Wbh9eI_02_w' },
+            { t: '2학년 1학기 (선택 택 5)', n: '현대사회와 윤리', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000135', vid: 'https://www.youtube.com/watch?v=B_6Jq4u_DHY' },
+            { t: '2학년 1학기 (선택 택 5)', n: '정치', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000139', vid: 'https://www.youtube.com/watch?v=F3gkE64YF6w' },
+            { t: '2학년 1학기 (선택 택 5)', n: '경제', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000141', vid: 'https://www.youtube.com/watch?v=DfL9JlpxisY' },
+            { t: '2학년 1학기 (선택 택 5)', n: '물리학', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000155', vid: 'https://www.youtube.com/watch?v=inDup_lRBes' },
+            { t: '2학년 1학기 (선택 택 5)', n: '화학', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000156', vid: 'https://www.youtube.com/watch?v=kE_t-3SlBUQ' },
+            { t: '2학년 1학기 (선택 택 5)', n: '생명과학', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000157', vid: 'https://www.youtube.com/watch?v=3TfxrTHO2nI' },
+            { t: '2학년 1학기 (선택 택 5)', n: '지구과학', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000158', vid: 'https://www.youtube.com/watch?v=OJduZuwnmwc' },
+            { t: '2학년 1학기 (선택 택 5)', n: '일본어', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000201', vid: 'https://www.youtube.com/watch?v=XOZT2Xmshk8' },
+            { t: '2학년 1학기 (선택 택 5)', n: '중국어', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000200', vid: 'https://www.youtube.com/watch?v=0CPe3gT5Eok' },
+            { t: '2학년 1학기 (선택 택 5)', n: '인공지능 기초', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '진로', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=ehooAIfH69g' },
+            { t: '2학년 1학기 (선택 택 5)', n: '기초체육전공실기', c: 3, type: 'e', cat: 'pe', ksy: false, sel: '진로', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=82CR7Dx8miE' },
+
+            // === 2학년 2학기 ===
+            { t: '2학년 2학기 (선택 택 5)', n: '화법과 언어', c: 4, type: 'm', cat: 'kor', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000091', vid: 'https://www.youtube.com/watch?v=83aWl7nNHGg' },
+            { t: '2학년 2학기 (선택 택 5)', n: '미적분 I', c: 4, type: 'm', cat: 'mat', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000105', vid: 'https://www.youtube.com/watch?v=Q2prILdICnk' },
+            { t: '2학년 2학기 (선택 택 5)', n: '영어 II', c: 4, type: 'm', cat: 'eng', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000118', vid: 'https://www.youtube.com/watch?v=eC9b2N2UO6Q' },
+            { t: '2학년 2학기 (선택 택 5)', n: '스포츠 생활 2', c: 2, type: 'm', cat: 'pe', ksy: false, sel: '일반', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000176', vid: 'https://www.youtube.com/watch?v=0PlU33dz6Ws' },
+            { t: '2학년 2학기 (선택 택 5)', n: '문학과 영상', c: 3, type: 'e', cat: 'kor', ksy: true, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000095', vid: 'https://www.youtube.com/watch?v=_i661jyHjbY' },
+            { t: '2학년 2학기 (선택 택 5)', n: '기하', c: 3, type: 'e', cat: 'mat', ksy: true, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000107', vid: 'https://www.youtube.com/watch?v=qnNEHIyn1OU' },
+            { t: '2학년 2학기 (선택 택 5)', n: '영어 발표와 토론', c: 3, type: 'e', cat: 'eng', ksy: true, sel: '진로', grd: '5단계/등급O' },
+            { t: '2학년 2학기 (선택 택 5)', n: '동아시아 역사 기행', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000138', vid: 'https://www.youtube.com/watch?v=OgIn8jrrak0' },
+            { t: '2학년 2학기 (선택 택 5)', n: '법과 사회', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000140', vid: 'https://www.youtube.com/watch?v=D5fvo3khGcI' },
+            { t: '2학년 2학기 (선택 택 5)', n: '윤리와 사상', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000142', vid: 'https://www.youtube.com/watch?v=ZBdTW9hZOdc' },
+            { t: '2학년 2학기 (선택 택 5)', n: '한국지리 탐구', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000136', vid: 'https://www.youtube.com/watch?v=cgj5-o38mCg' },
+            { t: '2학년 2학기 (선택 택 5)', n: '금융과 경제생활', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000136', vid: 'https://www.youtube.com/watch?v=cgj5-o38mCg' },
+            { t: '2학년 2학기 (선택 택 5)', n: '역학과 에너지', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000159', vid: 'https://www.youtube.com/watch?v=P1gsKXHt0Qk' },
+            { t: '2학년 2학기 (선택 택 5)', n: '물질과 에너지', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000161', vid: 'https://www.youtube.com/watch?v=K8pbCur_le0' },
+            { t: '2학년 2학기 (선택 택 5)', n: '세포와 물질대사', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000163', vid: 'https://www.youtube.com/watch?v=60ZNah735uI' },
+            { t: '2학년 2학기 (선택 택 5)', n: '지구시스템과학', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000165', vid: 'https://www.youtube.com/watch?v=REq4IcQJpZY' },
+            { t: '2학년 2학기 (선택 택 5)', n: '융합과학탐구', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '융합', grd: '5단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000169', vid: 'https://www.youtube.com/watch?v=XRVPgSFOuXc' },
+            { t: '2학년 2학기 (선택 택 5)', n: '일본어 회화', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000209', vid: 'https://www.youtube.com/watch?v=z219CCYuPi4' },
+            { t: '2학년 2학기 (선택 택 5)', n: '중국 문화', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '융합', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000216', vid: 'https://www.youtube.com/watch?v=g_RPwVDaCWs' },
+            { t: '2학년 2학기 (선택 택 5)', n: '데이터 과학', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '융합', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=xF6bt7sxTZQ' },
+            { t: '2학년 2학기 (선택 택 5)', n: '기초체육전공실기', c: 3, type: 'e', cat: 'pe', ksy: false, sel: '진로', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=82CR7Dx8miE' },
+
+            // === 3학년 1학기 ===
+            { t: '3학년 1학기 (선택 택 6)', n: '독서와 작문', c: 3, type: 'm', cat: 'kor', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000092', vid: 'https://www.youtube.com/watch?v=tyjwh2AFlrI' },
+            { t: '3학년 1학기 (선택 택 6)', n: '심화 영어 독해와 작문', c: 3, type: 'm', cat: 'eng', ksy: true, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000123', vid: 'https://www.youtube.com/watch?v=KzuKZxCxyhE' },
+            { t: '3학년 1학기 (선택 택 6)', n: '확률과 통계', c: 3, type: 'm', cat: 'mat', ksy: true, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000106', vid: 'https://www.youtube.com/watch?v=EyXG3cc3QKg' },
+            { t: '3학년 1학기 (선택 택 6)', n: '스포츠 문화', c: 1, type: 'm', cat: 'pe', ksy: false, sel: '일반', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000173', vid: 'https://www.youtube.com/watch?v=i9K1Sy5kloo' },
+            { t: '3학년 1학기 (선택 택 6)', n: '언어생활 탐구', c: 3, type: 'e', cat: 'kor', ksy: true, sel: '융합', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000099' },
+            { t: '3학년 1학기 (선택 택 6)', n: '세계 문화와 영어', c: 3, type: 'e', cat: 'eng', ksy: true, sel: '융합', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000127', vid: 'https://www.youtube.com/watch?v=ENw3_J_XrIk' },
+            { t: '3학년 1학기 (선택 택 6)', n: '미적분 II', c: 3, type: 'e', cat: 'mat', ksy: true, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000108', vid: 'https://www.youtube.com/watch?v=RvVz-HtHgLs' },
+            { t: '3학년 1학기 (선택 택 6)', n: '도시의 미래 탐구', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000137', vid: 'https://www.youtube.com/watch?v=ykLmJBuUnb4' },
+            { t: '3학년 1학기 (선택 택 6)', n: '역사로 탐구하는 현대 세계', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '융합', grd: '5단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000146', vid: 'https://www.youtube.com/watch?v=KcM2IDNmMR8' },
+            { t: '3학년 1학기 (선택 택 6)', n: '사회와 문화', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '일반', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000134', vid: 'https://www.youtube.com/watch?v=67oFbY8Rkys' },
+            { t: '3학년 1학기 (선택 택 6)', n: '인문학과 윤리', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000143', vid: 'https://www.youtube.com/watch?v=jUvaRQ45cXk' },
+            { t: '3학년 1학기 (선택 택 6)', n: '기후변화와 지속가능한 세계', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '융합', grd: '5단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000150', vid: 'https://www.youtube.com/watch?v=j8RNTH4_BcM' },
+            { t: '3학년 1학기 (선택 택 6)', n: '전자기와 양자', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000160', vid: 'https://www.youtube.com/watch?v=metLGbJoyYY' },
+            { t: '3학년 1학기 (선택 택 6)', n: '화학 반응의 세계', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000162', vid: 'https://www.youtube.com/watch?v=WeA06Ffmu5U' },
+            { t: '3학년 1학기 (선택 택 6)', n: '생물의 유전', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000164', vid: 'https://www.youtube.com/watch?v=PPeLwhZSQ0k' },
+            { t: '3학년 1학기 (선택 택 6)', n: '행성우주과학', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000166', vid: 'https://www.youtube.com/watch?v=yUx5HNWxSPs' },
+            { t: '3학년 1학기 (선택 택 6)', n: '기후변화와 환경생태', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '융합', grd: '5단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000168', vid: 'https://www.youtube.com/watch?v=HDegDycz6xM' },
+            { t: '3학년 1학기 (선택 택 6)', n: '일본 문화', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '융합', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000217', vid: 'https://www.youtube.com/watch?v=0cpiP2-zQSk' },
+            { t: '3학년 1학기 (선택 택 6)', n: '관광 중국어', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '진로', grd: '5단계/등급O' },
+            { t: '3학년 1학기 (선택 택 6)', n: '정보과학', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '진로', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=CY-h5Y1lv7c' },
+            { t: '3학년 1학기 (선택 택 6)', n: '음악 연주와 창작', c: 3, type: 'e', cat: 'art', ksy: false, sel: '진로', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000180', vid: 'https://www.youtube.com/watch?v=V1-64ky4OoI' },
+            { t: '3학년 1학기 (선택 택 6)', n: '미술 창작', c: 3, type: 'e', cat: 'art', ksy: false, sel: '진로', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000182', vid: 'https://www.youtube.com/watch?v=-TQSYy3-eNI' },
+            { t: '3학년 1학기 (선택 택 6)', n: '심화 체육 전공실기', c: 3, type: 'e', cat: 'pe', ksy: false, sel: '진로', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=cwp57eU_4MQ' },
+            { t: '3학년 1학기 (선택 택 6)', n: '논리와 사고', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '교양', grd: 'P/F', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000235', vid: 'https://www.youtube.com/watch?v=NObNpNI2qrg' },
+
+            // === 3학년 2학기 ===
+            { t: '3학년 2학기 (선택 택 6)', n: '독서 토론과 글쓰기', c: 3, type: 'm', cat: 'kor', ksy: true, sel: '융합', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000097', vid: 'https://www.youtube.com/watch?v=EWeFbPn1Joo' },
+            { t: '3학년 2학기 (선택 택 6)', n: '심화 영어', c: 3, type: 'm', cat: 'eng', ksy: true, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000122', vid: 'https://www.youtube.com/watch?v=0rXqEFbQwTk' },
+            { t: '3학년 2학기 (선택 택 6)', n: '수학과 문화', c: 3, type: 'm', cat: 'mat', ksy: true, sel: '융합', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000112', vid: 'https://www.youtube.com/watch?v=_dS32uMM69E' },
+            { t: '3학년 2학기 (선택 택 6)', n: '스포츠 과학', c: 1, type: 'm', cat: 'pe', ksy: false, sel: '일반', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000174', vid: 'https://www.youtube.com/watch?v=giKmFOFbuio' },
+            { t: '3학년 2학기 (선택 택 6)', n: '매체 의사소통', c: 3, type: 'e', cat: 'kor', ksy: true, sel: '융합', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000098' },
+            { t: '3학년 2학기 (선택 택 6)', n: '미디어 영어', c: 3, type: 'e', cat: 'eng', ksy: true, sel: '융합', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000126', vid: 'https://www.youtube.com/watch?v=2cqxzbNIDHs' },
+            { t: '3학년 2학기 (선택 택 6)', n: '경제 수학', c: 3, type: 'e', cat: 'mat', ksy: true, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000109', vid: 'https://www.youtube.com/watch?v=5kCKGit1Kl0' },
+            { t: '3학년 2학기 (선택 택 6)', n: '전문 수학', c: 3, type: 'e', cat: 'mat', ksy: true, sel: '진로', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=fchqF72Ualk' },
+            { t: '3학년 2학기 (선택 택 6)', n: '여행지리', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '융합', grd: '5단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000145', vid: 'https://www.youtube.com/watch?v=pM9asAyjJSM' },
+            { t: '3학년 2학기 (선택 택 6)', n: '윤리문제 탐구', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '융합', grd: '5단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000149', vid: 'https://www.youtube.com/watch?v=tln1XgsFwxU' },
+            { t: '3학년 2학기 (선택 택 6)', n: '문화로 보는 한국사', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '융합', grd: '5단계/등급O' }, 
+            { t: '3학년 2학기 (선택 택 6)', n: '전자기와 양자', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000160', vid: 'https://www.youtube.com/watch?v=metLGbJoyYY' },
+            { t: '3학년 2학기 (선택 택 6)', n: '화학 반응의 세계', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000162', vid: 'https://www.youtube.com/watch?v=WeA06Ffmu5U' },
+            { t: '3학년 2학기 (선택 택 6)', n: '생물의 유전', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000164', vid: 'https://www.youtube.com/watch?v=PPeLwhZSQ0k' },
+            { t: '3학년 2학기 (선택 택 6)', n: '행성우주과학', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000166', vid: 'https://www.youtube.com/watch?v=yUx5HNWxSPs' },
+            { t: '3학년 2학기 (선택 택 6)', n: '관광 일본어', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '진로', grd: '5단계/등급O' },
+            { t: '3학년 2학기 (선택 택 6)', n: '중국어 회화', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '진로', grd: '5단계/등급O', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000208', vid: 'https://www.youtube.com/watch?v=M65Z7eTDeyY' },
+            { t: '3학년 2학기 (선택 택 6)', n: '소프트웨어와 생활', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '융합', grd: '5단계/등급O' },
+            { t: '3학년 2학기 (선택 택 6)', n: '음악 감상과 비평', c: 3, type: 'e', cat: 'art', ksy: false, sel: '일반', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000181', vid: 'https://www.youtube.com/watch?v=0jh4tHjc0Hg' },
+            { t: '3학년 2학기 (선택 택 6)', n: '미술 감상과 비평', c: 3, type: 'e', cat: 'art', ksy: false, sel: '일반', grd: '3단계/등급X', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000183', vid: 'https://www.youtube.com/watch?v=6gz5hjfU8WU' },
+            { t: '3학년 2학기 (선택 택 6)', n: '심화 체육 전공 실기', c: 3, type: 'e', cat: 'pe', ksy: false, sel: '진로', grd: '5단계/등급O', vid: 'https://www.youtube.com/watch?v=cwp57eU_4MQ' },
+            { t: '3학년 2학기 (선택 택 6)', n: '논리와 사고', c: 3, type: 'e', cat: 'etc', ksy: false, sel: '교양', grd: 'P/F', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000235', vid: 'https://www.youtube.com/watch?v=NObNpNI2qrg' },
+            { t: '3학년 2학기 (선택 택 6)', n: '과학의 역사와 문화', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '융합', grd: '5단계/등급X', choiceGroup: '3-2-ab', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000167', vid: 'https://www.youtube.com/watch?v=Tfrcyc6dv-c' },
+            { t: '3학년 2학기 (선택 택 6)', n: '기후변화와 환경생태', c: 3, type: 'e', cat: 'sci', ksy: false, sel: '융합', grd: '5단계/등급X', choiceGroup: '3-2-ab', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000168', vid: 'https://www.youtube.com/watch?v=HDegDycz6xM' },
+            { t: '3학년 2학기 (선택 택 6)', n: '사회문제 탐구', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '융합', grd: '5단계/등급X', choiceGroup: '3-2-cd', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000147', vid: 'https://www.youtube.com/watch?v=LAkca6ix5Ck' },
+            { t: '3학년 2학기 (선택 택 6)', n: '기후변화와 지속가능한 세계', c: 3, type: 'e', cat: 'soc', ksy: false, sel: '융합', grd: '5단계/등급X', choiceGroup: '3-2-cd', pdf: 'https://more.goe.go.kr/hagjeomje/module/upload/usr/file/selectPdfViewer.do?usrfileSeq=30300000150', vid: 'https://www.youtube.com/watch?v=j8RNTH4_BcM' },
+        ];
+
+        const reqs = { kor: 8, mat: 8, eng: 8, his: 6, soc: 8, sci: 10, pe: 10, art: 6, etc: 15 };
+        const catNames = { kor: '국어', mat: '수학', eng: '영어', his: '한국사', soc: '사회', sci: '과학', pe: '체육', art: '예술', etc: '기술·가정/정보/제2외국어/한문/교양' };
+
+        const termLimits = {
+            '2학년 1학기 (선택 택 5)': 5,
+            '2학년 2학기 (선택 택 5)': 5,
+            '3학년 1학기 (선택 택 6)': 6,
+            '3학년 2학기 (선택 택 6)': 4
+        };
+
+        // 1. 탭 네비게이션 로직
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.target).classList.add('active');
+                window.scrollTo(0,0);
+            });
+        });
+
+        // 2. 시뮬레이터 렌더링 (💡 open 속성을 제거하여 초기 로드 시 닫혀있도록 세팅)
+        function renderSim() {
+            const terms = [...new Set(courses.map(c => c.t))];
+            let html = '';
+            terms.forEach((t, termIdx) => {
+                html += `<details class="term-group"><summary>${t}</summary><div class="term-content">`;
+                let lastChoiceGroup = '';
+                let normalChoiceTitleShown = false;
+                courses.filter(c => c.t === t).forEach((c, i) => {
+                    const isM = c.type === 'm';
+                    const uniqueId = `cb-${termIdx}-${i}`;
+                    const choiceGroup = c.choiceGroup || '';
+
+                    if (t === '3학년 2학기 (선택 택 6)' && c.type === 'e' && !choiceGroup && !normalChoiceTitleShown) {
+                        html += `<div class="choice-section-title">선택 택 4</div>`;
+                        normalChoiceTitleShown = true;
+                    }
+
+                    if (choiceGroup && choiceGroup !== lastChoiceGroup) {
+                        html += `<div class="choice-section-title">선택 택 1</div>`;
+                    }
+                    if (choiceGroup) lastChoiceGroup = choiceGroup;
+
+                    let grdClass = 'tag-grd';
+                    if(c.grd.includes('등급X') || c.grd === 'P/F') grdClass = 'tag-grd-x';
+
+                    html += `
+                        <div class="course-card ${isM ? 'mandatory' : ''}" onclick="toggleCb('${uniqueId}', ${isM})">
+                            <div class="course-header">
+                                <div class="checkbox-wrapper">
+                                    <input type="checkbox" id="${uniqueId}" class="cb" data-c="${c.c}" data-cat="${c.cat}" data-ksy="${c.ksy}" data-term="${t}" data-type="${c.type}" data-choice-group="${choiceGroup}" ${isM ? 'checked disabled' : ''}>
+                                </div>
+                                <div class="course-info">
+                                    <div class="course-title-top">
+                                        <span class="title-text">${c.n}</span>
+                                        <span class="tag ${isM ? 'tag-req' : 'tag-opt'}">${isM ? '지정' : '선택'}</span>
+                                    </div>
+                                    <div class="tags-wrapper">
+                                        <span class="tag tag-opt">${c.sel}</span>
+                                        <span class="tag ${grdClass}">${c.grd}</span>
+                                        <span class="tag tag-cred">${c.c}학점</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+                html += `</div></details>`;
+            });
+            document.getElementById('sim-container').innerHTML = html;
+        }
+
+        window.toggleCb = function(id, isMandatory) {
+            if(isMandatory) return; 
+            const cb = document.getElementById(id);
+            if(cb.disabled) return;
+
+            const choiceGroup = cb.dataset.choiceGroup;
+            const willCheck = !cb.checked;
+
+            // 같은 선택 묶음(A/B, C/D)에서는 하나만 선택되도록 처리
+            if (choiceGroup && willCheck) {
+                document.querySelectorAll(`.cb[data-choice-group="${choiceGroup}"]`).forEach(other => {
+                    if (other.id !== id) other.checked = false;
+                });
+            }
+
+            cb.checked = willCheck;
+            calc();
+        };
+
+        // 3. 과목 안내 (검색 및 그룹핑)
+        function renderGuide(searchTerm = '') {
+            let html = '';
+            let hasAnyResult = false;
+            
+            for (let catKey in catNames) {
+                let catCourses = courses.filter(c => c.cat === catKey);
+                if (searchTerm) {
+                    catCourses = catCourses.filter(c => c.n.toLowerCase().includes(searchTerm.toLowerCase()));
+                }
+
+                const uniqueCourses = [];
+                const seen = new Set();
+                catCourses.forEach(c => {
+                    if(!seen.has(c.n)) {
+                        seen.add(c.n);
+                        uniqueCourses.push(c);
+                    }
+                });
+
+                if (uniqueCourses.length > 0) {
+                    hasAnyResult = true;
+                    html += `<div class="guide-section">
+                                <h3 class="guide-cat-title">${catNames[catKey]}</h3>
+                                <div class="guide-list">`;
+                    uniqueCourses.forEach(c => {
+                        html += `
+                            <div class="guide-item">
+                                <div class="guide-item-top">
+                                    <div class="guide-item-name">${c.n}</div>
+                                    <div style="font-size:0.75rem; color:var(--text-sub);">${c.c}학점</div>
+                                </div>
+                                <div style="font-size:0.7rem; color:var(--primary); margin-bottom: 8px;">${c.sel} · ${c.grd}</div>
+                                <div class="guide-actions">
+                                    ${c.pdf ? `<button class="btn-link btn-pdf" onclick="window.open('${c.pdf}', '_blank')">📄 과목 안내서</button>` : ''}
+                                    ${c.vid ? `<button class="btn-link btn-vid" onclick="window.open('${c.vid}', '_blank')">🎬 안내 영상</button>` : ''}
+                                </div>
+                            </div>`;
+                    });
+                    html += `   </div>
+                             </div>`;
+                }
+            }
+            
+            if(!hasAnyResult) html = '<div class="no-result">검색 결과가 없습니다.</div>';
+            document.getElementById('guide-container').innerHTML = html;
+        }
+
+        document.getElementById('guide-search-input').addEventListener('input', function(e) {
+            renderGuide(e.target.value);
+        });
+
+        // 5. 한도 초과 시 음영 처리 및 비활성화
+        function updateLimits() {
+            for (let term in termLimits) {
+                const limit = termLimits[term];
+                const electives = [...document.querySelectorAll(`.cb[data-term="${term}"][data-type="e"]`)]
+                    .filter(cb => !cb.dataset.choiceGroup);
+                
+                let checkedCount = 0;
+                electives.forEach(cb => { if(cb.checked) checkedCount++; });
+
+                electives.forEach(cb => {
+                    const card = cb.closest('.course-card');
+                    if (!cb.checked) {
+                        if (checkedCount >= limit) {
+                            cb.disabled = true;
+                            card.classList.add('over-limit');
+                        } else {
+                            cb.disabled = false;
+                            card.classList.remove('over-limit');
+                        }
+                    } else {
+                        cb.disabled = false;
+                        card.classList.remove('over-limit');
+                    }
+                });
+            }
+        }
+
+
+        // 6. A/B, C/D처럼 '2개중 1개 선택' 묶음은 하나를 고르면 다른 하나를 비활성화
+        function updateChoiceGroups() {
+            const groups = [...new Set([...document.querySelectorAll('.cb[data-choice-group]')].map(cb => cb.dataset.choiceGroup).filter(Boolean))];
+
+            groups.forEach(group => {
+                const groupItems = document.querySelectorAll(`.cb[data-choice-group="${group}"]`);
+                const checkedItem = [...groupItems].find(cb => cb.checked);
+
+                groupItems.forEach(cb => {
+                    const card = cb.closest('.course-card');
+                    if (checkedItem && cb.id !== checkedItem.id) {
+                        cb.disabled = true;
+                        card.classList.add('over-limit');
+                    } else {
+                        cb.disabled = false;
+                        card.classList.remove('over-limit');
+                    }
+                });
+            });
+        }
+
+        // 4. 학점 시뮬레이션 계산
+        function calc() {
+            let total = 0, ksy = 0;
+            const cats = { kor:0, mat:0, eng:0, his:0, soc:0, sci:0, pe:0, art:0, etc:0 };
+
+            document.querySelectorAll('.cb:checked').forEach(cb => {
+                const c = parseInt(cb.dataset.c);
+                total += c;
+                if (cb.dataset.ksy === 'true') ksy += c;
+                cats[cb.dataset.cat] += c;
+            });
+
+            document.getElementById('total-val').innerText = total;
+            document.getElementById('ksy-limit-val').innerText = ksy;
+            document.getElementById('ksy-limit-val').parentElement.className = ksy > 81 ? 'val-line warning' : 'val-line pass';
+
+            for (let cat in cats) {
+                const el = document.getElementById(`cat-${cat}`);
+                if (el) {
+                    el.innerText = cats[cat];
+                    el.parentElement.className = cats[cat] >= reqs[cat] ? 'val-line safe' : 'val-line';
+                }
+            }
+
+            updateLimits();
+            updateChoiceGroups();
+        }
+
+        renderSim();
+        renderGuide();
+        calc();
+    </script>
+</body>
+</html>
